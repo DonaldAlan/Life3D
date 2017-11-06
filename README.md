@@ -1,6 +1,5 @@
 # Life3D
 3D life in Java using JavaFX, with configurable rules
-Java code written in JavaFX to draw 3D Life with configurable rules.
 
 Life3D.java is the main app.  
 
