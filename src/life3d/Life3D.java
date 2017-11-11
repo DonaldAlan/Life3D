@@ -1,5 +1,10 @@
 package life3d;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -8,6 +13,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+
+import javax.swing.JFileChooser;
+import javax.swing.filechooser.FileFilter;
 
 import javafx.animation.AnimationTimer;
 import javafx.application.Application;
@@ -38,8 +46,12 @@ import javafx.stage.Stage;
  * Press q to quit, SPACE to pause, i to restart, 0 - 9 to choose an update rule, arrow keys to move, s for slower, f for faster.
  * Click and drag mouse to navigate.
  * 
+ * TODO: make a mode which allows the user to click on cells and create a seed pattern.
+ * TODO: play MIDI music based on life animation.
+ * 
  */
 public class Life3D extends Application {
+	public static String initialDirectory=null; // set to something like "c:/tmp/" to load from that directory
 	private static boolean useRandomMaterials = false; // false makes it use hsb
 														// colors
 	private static int maxIJK = 12;
@@ -292,6 +304,14 @@ public class Life3D extends Application {
 				case Q:
 					System.exit(0);
 					break;
+				case L:
+					try {
+						load();
+						}
+					catch (IOException exc) {
+						exc.printStackTrace();
+						MessageBox.show(exc.getMessage(), "Unable to load shape");
+					}
 				case DIGIT0:
 					ruleIndex = 0;
 					makeTitle();
@@ -332,7 +352,7 @@ public class Life3D extends Application {
 					ruleIndex = 9;
 					makeTitle();
 					break;
-				case R:
+				case V:
 					cameraXform.t.setZ(0);
 					cameraXform.rx.setAngle(0);
 					cameraXform.ry.setAngle(0);
@@ -360,12 +380,12 @@ public class Life3D extends Application {
 						camera.setTranslateZ(camera.getTranslateZ() - 10);
 					}
 					break;
-				case C:
+				case C:					
 					randomizeColorsAndMaterials();
 					updateColors();
 					world.requestLayout();
 					break;
-				case I:
+				case R:
 					world.getChildren().removeAll(shapes);
 					shapes.clear();
 					shapeMap.clear();
@@ -381,6 +401,63 @@ public class Life3D extends Application {
 				}
 			}
 		});
+	}
+	
+	private void load() throws IOException {
+		running=false;
+		JFileChooser chooser = new JFileChooser();
+		if (initialDirectory!=null) {
+			chooser.setCurrentDirectory(new File(initialDirectory));
+		}
+		FileFilter filter = new FileFilter() {
+			@Override
+			public boolean accept(File file) {
+				return file.getName().endsWith(".shape");
+			}
+
+			@Override
+			public String getDescription() {
+				return "Shape files";
+			}};
+		chooser.setFileFilter(filter);
+		int result=chooser.showOpenDialog(null);
+		if (result!= JFileChooser.APPROVE_OPTION) {
+			running=true;
+		} else {
+			File file=chooser.getSelectedFile();
+			BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(file)));
+			List<int[]> listOfLocations = new ArrayList<>();
+			while (true) {
+				String line=reader.readLine();
+				if (line==null) {
+					break;
+				}
+				line=line.trim();
+				if (line==null || line.startsWith("#")) {
+					continue;
+				}
+				String parts[] = line.split(",");
+				if (parts.length!=3) {
+					MessageBox.show("Unexpected line: " + line + " in " + file,"Unable to load shape");
+					reader.close();
+					running=true;
+					return;
+				}
+				int x= Integer.parseInt(parts[0]);
+				int y= Integer.parseInt(parts[1]);
+				int z= Integer.parseInt(parts[2]);
+				listOfLocations.add(new int[] {x,y,z});
+			} // while
+			reader.close();
+			world.getChildren().removeAll(shapes);
+			shapes.clear();
+			shapeMap.clear();
+			for(int[] shape: listOfLocations) {
+				draw(shape[0],shape[1],shape[2]);
+			}
+			makeTitle();
+			running=false;
+		}
 	}
 
 	private void scaleRadius(Shape3D shape, double scale) {
@@ -598,11 +675,11 @@ public class Life3D extends Application {
 		return sb.toString();
 	}
 
-	private static final String HELP_MESSAGE="Press q to quit, SPACE to pause, i to restart, "
-			+ "0 - 9 to choose an update rule, arrow keys to move, s for slower, f for faster. Click and drag mouse to navigate.";
+	private static final String HELP_MESSAGE="Press SPACE to pause/continue, r to re-initialize, L to load shape, q to quit, "
+			+ "0 - 9 to choose an update rule, s for slower, f for faster, arrow keys or click and drag mouse to navigate.";
 	private void makeTitle() {
 		primaryStage.setTitle("Life3D:  " + HELP_MESSAGE
-				+ " Rule " + ruleIndex + " with "
+				+ "   Rule " + ruleIndex + " with "
 				+ format(shapes.size()) + " nodes");
 	}
 
@@ -854,10 +931,10 @@ public class Life3D extends Application {
 		final AnimationTimer timer = new AnimationTimer() {
 			@Override
 			public void handle(long nowInNanoSeconds) {
-				cameraXform.rz.setAngle(cameraXform.rz.getAngle() + 0.2);
 				if (!running) {
 					return;
 				}
+				cameraXform.rz.setAngle(cameraXform.rz.getAngle() + 0.2);
 				// running=false;
 				if (nowInNanoSeconds - last[0] < speedInMls * ONE_MILLISECOND_IN_NANOSECONDS) {
 					return;
@@ -867,7 +944,7 @@ public class Life3D extends Application {
 				makeTitle();
 				world.requestLayout();
 				if (shapes.isEmpty()) {
-					drawRandom(6);
+					running=false;
 				}
 			}
 		};
