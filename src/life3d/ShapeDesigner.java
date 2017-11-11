@@ -344,6 +344,9 @@ public class ShapeDesigner extends Application {
 		int minX=Integer.MAX_VALUE;
 		int minY=Integer.MAX_VALUE;
 		int minZ=Integer.MAX_VALUE;
+		int maxX=Integer.MIN_VALUE;
+		int maxY=Integer.MIN_VALUE;
+		int maxZ=Integer.MIN_VALUE;
 		for(MyBox box: selectedCubes) {
 			int x=box.getX();
 			int y=box.getY();
@@ -352,11 +355,18 @@ public class ShapeDesigner extends Application {
 			if (x<minX) {minX=x;}
 			if (y<minY) {minY=y;}
 			if (z<minZ) {minZ=z;}
+			if (x>maxX) {maxX=x;}
+			if (y>maxY) {maxY=y;}
+			if (z>maxZ) {maxZ=z;}
 		}
+		// So that the shape is centered at the origin:
+		int deltaX=minX+maxX/2;
+		int deltaY=minY+maxY/2;
+		int deltaZ=minZ+maxZ/2;
 		for(int[] coordinates: selectedCoordinates) {
-			int x=coordinates[0]-minX;
-			int y=coordinates[1]-minY;
-			int z=coordinates[2]-minZ;
+			int x=coordinates[0]-deltaX;
+			int y=coordinates[1]-deltaY;
+			int z=coordinates[2]-deltaZ;
 			writer.println(x + "," + y + "," + z);
 		}
 		writer.close();

@@ -51,10 +51,10 @@ import javafx.stage.Stage;
  * 
  */
 public class Life3D extends Application {
+	private static int maxIJK = 16; // This defines the maximum offset allowed.
 	public static String initialDirectory=null; // set to something like "c:/tmp/" to load from that directory
 	private static boolean useRandomMaterials = false; // false makes it use hsb
 														// colors
-	private static int maxIJK = 12;
 	// surviveLow,surviveHigh, bornLow,bornHigh
 	private static final int[][] rules =
 			{ { 1, 3, 2, 3 }, // 0
