@@ -43,15 +43,14 @@ import javafx.stage.Stage;
  * 
  * @author Donald A. Smith, ThinkerFeeler@gmail.com
  * 
- * Press q to quit, SPACE to pause, i to restart, 0 - 9 to choose an update rule, arrow keys to move, s for slower, f for faster.
- * Click and drag mouse to navigate.
+ * Press SPACE to pause/continue, r to re-initialize, L to load a shape, q to quit,
+ * 0 - 9 to choose an update rule, s for slower, f for faster, arrow keys or 
+ * click and drag mouse to navigate.    Press + to increase maxExent, - to decrease maxExtent.
  * 
- * TODO: make a mode which allows the user to click on cells and create a seed pattern.
- * TODO: play MIDI music based on life animation.
- * 
+ * Run ShapeDesigner.java to design starting shapes.  
  */
 public class Life3D extends Application {
-	private static int maxIJK = 16; // This defines the maximum offset allowed.
+	private int maxExtent = 16; // This defines the maximum offset allowed.
 	public static String initialDirectory=null; // set to something like "c:/tmp/" to load from that directory
 	private static boolean useRandomMaterials = false; // false makes it use hsb
 														// colors
@@ -92,7 +91,7 @@ public class Life3D extends Application {
 	private static List<PhongMaterial> randomMaterials = new ArrayList<>(NUMBER_OF_RANDOM_COLORS);
 	private static List<PhongMaterial> hsbMaterials = new ArrayList<>(NUMBER_OF_HSB_COLORS);
 	private volatile Sphere selectedSphere = null;
-	private volatile boolean running = true;
+	private volatile boolean isRunning = true;
 	private PointLight light1;
 	private PointLight light2;
 	private Set<Shape3D> shapes = new HashSet<Shape3D>();
@@ -299,7 +298,7 @@ public class Life3D extends Application {
 			public void handle(KeyEvent ke) {
 				switch (ke.getCode()) {
 				case SPACE:
-					running = !running;
+					isRunning = !isRunning;
 					break;
 				case Q:
 					System.exit(0);
@@ -319,6 +318,16 @@ public class Life3D extends Application {
 				case DIGIT1:
 					ruleIndex = 1;
 					makeTitle();
+					break;
+				case PLUS:
+					maxExtent++;
+					System.out.println("Set maxExtent to " + maxExtent);
+					break;
+				case MINUS:
+					if (maxExtent>5) {
+						maxExtent--;
+						System.out.println("Set maxExtent to " + maxExtent);
+					}
 					break;
 				case DIGIT2:
 					ruleIndex = 2;
@@ -390,6 +399,7 @@ public class Life3D extends Application {
 					shapes.clear();
 					shapeMap.clear();
 					draw();
+					isRunning=true;
 					break;
 				case S:
 					speedInMls = (int) (1.1 * speedInMls);
@@ -404,7 +414,7 @@ public class Life3D extends Application {
 	}
 	
 	private void load() throws IOException {
-		running=false;
+		isRunning=false;
 		JFileChooser chooser = new JFileChooser();
 		if (initialDirectory!=null) {
 			chooser.setCurrentDirectory(new File(initialDirectory));
@@ -422,7 +432,7 @@ public class Life3D extends Application {
 		chooser.setFileFilter(filter);
 		int result=chooser.showOpenDialog(null);
 		if (result!= JFileChooser.APPROVE_OPTION) {
-			running=true;
+			isRunning=true;
 		} else {
 			File file=chooser.getSelectedFile();
 			BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(file)));
@@ -440,7 +450,7 @@ public class Life3D extends Application {
 				if (parts.length!=3) {
 					MessageBox.show("Unexpected line: " + line + " in " + file,"Unable to load shape");
 					reader.close();
-					running=true;
+					isRunning=true;
 					return;
 				}
 				int x= Integer.parseInt(parts[0]);
@@ -456,7 +466,7 @@ public class Life3D extends Application {
 				draw(shape[0],shape[1],shape[2]);
 			}
 			makeTitle();
-			running=false;
+			isRunning=false;
 		}
 	}
 
@@ -598,7 +608,7 @@ public class Life3D extends Application {
 			int i = getI(shape);
 			int j = getJ(shape);
 			int k = getK(shape);
-			if (Math.abs(i) > maxIJK || Math.abs(j) > maxIJK || Math.abs(k) > maxIJK) {
+			if (Math.abs(i) > maxExtent || Math.abs(j) > maxExtent || Math.abs(k) > maxExtent) {
 				continue;
 			}
 			for (int deltaX = -1; deltaX < 2; deltaX++) {
@@ -931,7 +941,7 @@ public class Life3D extends Application {
 		final AnimationTimer timer = new AnimationTimer() {
 			@Override
 			public void handle(long nowInNanoSeconds) {
-				if (!running) {
+				if (!isRunning) {
 					return;
 				}
 				cameraXform.rz.setAngle(cameraXform.rz.getAngle() + 0.2);
@@ -944,7 +954,7 @@ public class Life3D extends Application {
 				makeTitle();
 				world.requestLayout();
 				if (shapes.isEmpty()) {
-					running=false;
+					isRunning=false;
 				}
 			}
 		};

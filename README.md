@@ -3,5 +3,8 @@
 
 Life3D.java is the main app.  
 
- Press q to quit, SPACE to pause, i to restart, 0 - 9 to choose an update rule, arrow keys to move, s for slower, f for faster.
- Click and drag mouse to navigate.
+Press SPACE to pause/continue, r to re-initialize, L to load a shape, q to quit,
+0 - 9 to choose an update rule, s for slower, f for faster, arrow keys or 
+click and drag mouse to navigate.    Press + to increase maxExent, - to decrease maxExtent.
+
+Run ShapeDesigner.java to design starting shapes.  
