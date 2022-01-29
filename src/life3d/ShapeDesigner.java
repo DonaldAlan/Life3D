@@ -9,6 +9,7 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 
 import javax.swing.JFileChooser;
@@ -34,8 +35,6 @@ import javafx.scene.shape.Shape3D;
 import javafx.scene.shape.Sphere;
 import javafx.scene.transform.Rotate;
 import javafx.scene.transform.Translate;
-import javafx.stage.FileChooser;
-import javafx.stage.FileChooser.ExtensionFilter;
 import javafx.stage.Stage;
 /**
  * 
@@ -52,6 +51,7 @@ public class ShapeDesigner extends Application {
 	private final XformWorld world = new XformWorld();
 	private final PerspectiveCamera camera = new PerspectiveCamera(true);
 	private final XformCamera cameraXform = new XformCamera();
+	private final Random random = new Random();
 	private static double cameraInitialX = n*5;
 	private static double cameraInitialY = n*3;
 	private static double cameraInitialZ = -150;
@@ -200,7 +200,16 @@ public class ShapeDesigner extends Application {
 			}
 		});
 	}
-	
+	private void randomize(final boolean shiftDown) {
+		int x=random.nextInt(n);
+		int y=random.nextInt(n);
+		int z=random.nextInt(n);
+		MyBox shape = cubes[x][y][z];
+		if (!selectedCubes.contains(shape)) {
+			selectedCubes.add(shape);
+			shape.setMaterial(selectedMaterial); 
+		}
+	}
 	private void handleKeyEvents(Scene scene) {
 		scene.setOnKeyPressed(new EventHandler<KeyEvent>() {
 			public void handle(KeyEvent ke) {
@@ -220,12 +229,7 @@ public class ShapeDesigner extends Application {
 					System.exit(0);
 					break;
 				case R:
-					cameraXform.t.setZ(0);
-					cameraXform.rx.setAngle(0);
-					cameraXform.ry.setAngle(0);
-					camera.setTranslateX(0);
-					camera.setTranslateY(cameraInitialY);
-					camera.setTranslateZ(cameraInitialZ);
+					randomize(ke.isShiftDown());
 					break;
 				case LEFT:
 					camera.setTranslateX(camera.getTranslateX() + 10);
@@ -475,8 +479,8 @@ public class ShapeDesigner extends Application {
 
 
 	private void makeTitle() {
-		primaryStage.setTitle("Use x, y, or z to navigate; shift for opposite direction. "
-				+ "Click cubes to select/deselect them. S to save. L to load. Arrow keys or drag mouse to navigate view.");
+		primaryStage.setTitle("Use x/X, y/Y, or z/Z to navigate. "
+				+ "Click cubes to select/deselect cubes. S to save. L to load. R to add random cube. Arrow keys or drag mouse to navigate view.");
 	}
 
 	private void drawCubes() {
