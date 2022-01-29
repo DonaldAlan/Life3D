@@ -1,7 +1,10 @@
 package life3d;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -197,7 +200,7 @@ public class ShapeDesigner extends Application {
 			}
 		});
 	}
-
+	
 	private void handleKeyEvents(Scene scene) {
 		scene.setOnKeyPressed(new EventHandler<KeyEvent>() {
 			public void handle(KeyEvent ke) {
@@ -295,6 +298,13 @@ public class ShapeDesigner extends Application {
 					selectedCubes.clear();
 					world.requestLayout();
 					break;
+				case L:
+					try {
+						load();
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+					break;
 				case S:
 					if (selectedCubes.isEmpty()) {
 						break;
@@ -371,7 +381,76 @@ public class ShapeDesigner extends Application {
 		}
 		writer.close();
 	}
-	
+	private void load() throws IOException {
+		JFileChooser chooser = new JFileChooser();
+		if (Life3D.initialDirectory!=null) {
+			chooser.setCurrentDirectory(new File(Life3D.initialDirectory));
+		}
+		FileFilter filter = new FileFilter() {
+			@Override
+			public boolean accept(File file) {
+				return file.getName().endsWith(".shape");
+			}
+
+			@Override
+			public String getDescription() {
+				return "Shape files";
+			}};
+		chooser.setFileFilter(filter);
+		int result=chooser.showOpenDialog(null);
+		if (result!= JFileChooser.APPROVE_OPTION) {
+			return;
+		} else {
+			File file=chooser.getSelectedFile();
+			BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(file)));
+			List<int[]> listOfLocations = new ArrayList<>();
+			int minX=0; // So that we can make them all positive. Saved values can be negative
+			int minZ=0;
+			int minY=0;
+			while (true) {
+				String line=reader.readLine();
+				if (line==null) {
+					break;
+				}
+				line=line.trim();
+				if (line==null || line.startsWith("#")) {
+					continue;
+				}
+				String parts[] = line.split(",");
+				if (parts.length!=3) {
+					MessageBox.show("Unexpected line: " + line + " in " + file,"Unable to load shape");
+					reader.close();
+					return;
+				}
+				int x= Integer.parseInt(parts[0]);
+				int y= Integer.parseInt(parts[1]);
+				int z= Integer.parseInt(parts[2]);
+				minX=Math.min(minX, x);
+				minY=Math.min(minY, y);
+				minZ=Math.min(minZ, z);
+				listOfLocations.add(new int[] {x,y,z});
+			} // while
+			reader.close();
+			selectedCubes.clear();
+			for(int x=0;x<n;x++) {
+				for(int y=0;y<n;y++) {
+					for(int z=0;z<n;z++) {
+						MyBox shape = cubes[x][y][z];
+						selectedCubes.remove(shape);
+						shape.setMaterial(unSelectedMaterials3D[x][y][z]);
+					}
+				}
+			}
+			for(int[] xyz:listOfLocations) {
+				int x=xyz[0]-minX;
+				int y=xyz[1]-minY;
+				int z=xyz[2]-minZ;
+				MyBox shape = cubes[x][y][z];
+				shape.setMaterial(selectedMaterial);
+				selectedCubes.add(shape);
+			}
+		}
+	}
 	private void drawUnselected(final int i, int j, int k) {
 		// Sphere shape = new Sphere(3);
 		MyBox shape = new MyBox(i,j,k);
@@ -397,7 +476,7 @@ public class ShapeDesigner extends Application {
 
 	private void makeTitle() {
 		primaryStage.setTitle("Use x, y, or z to navigate; shift for opposite direction. "
-				+ "Enter or click on cubes to select/deselect them. S to save.  Use arrow keys or drag mouse to navigate view.");
+				+ "Click cubes to select/deselect them. S to save. L to load. Arrow keys or drag mouse to navigate view.");
 	}
 
 	private void drawCubes() {

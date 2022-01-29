@@ -51,7 +51,7 @@ import javafx.stage.Stage;
  */
 public class Life3D extends Application {
 	private int maxExtent = 16; // This defines the maximum offset allowed.
-	public static String initialDirectory=null; // set to something like "c:/tmp/" to load from that directory
+	public static String initialDirectory="shapes"; // set to something like "c:/tmp/" to load from that directory
 	private static boolean useRandomMaterials = false; // false makes it use hsb
 														// colors
 	// surviveLow,surviveHigh, bornLow,bornHigh
