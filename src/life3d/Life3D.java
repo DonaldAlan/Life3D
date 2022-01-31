@@ -552,6 +552,10 @@ public class Life3D extends Application {
 	}
 
 	private void draw(int i, int j, int k) {
+		if (getShape(i,j,k)!=null) {
+			System.err.println("Warning: shape already exists at " + i + ", " + j + ", " + k);
+			return;
+		}
 		// Sphere shape = new Sphere(3);
 		Box shape = new Box(7, 7, 7);
 		// shape.setRotationAxis(new
@@ -896,7 +900,22 @@ public class Life3D extends Application {
 		System.out.println(Arrays.toString(rule));
 		rules[rules.length-1] = rule;
 	}
+	private void drawTotallyRandom() {
+		final int extent = 2+random.nextInt(5);
+		final int count = 4+random.nextInt(20);
+		for(int i=0;i<count;i++) {
+			int x=random.nextInt(2*extent+1)-extent;
+			int y=random.nextInt(2*extent+1)-extent;
+			int z=random.nextInt(2*extent+1)-extent;
+			if (getShape(x,y,z)==null) {
+				draw(x,y,z);
+			}
+		}
+	}
 	private void draw() {
+		if (random.nextBoolean()) {
+			drawTotallyRandom();
+		}
 		switch (random.nextInt(17)) {
 		case 0:
 			drawStar1();
