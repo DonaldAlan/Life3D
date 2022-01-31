@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.text.NumberFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -48,6 +49,11 @@ import javafx.stage.Stage;
  * click and drag mouse to navigate.    Press + to increase maxExent, - to decrease maxExtent.
  * 
  * Run ShapeDesigner.java to design starting shapes.  
+ * 
+ * TODO: have probabilistic rules.
+ * TODO: draw different shapes
+ * TODO: compute 4D life and project to 3d
+ * TODO: make update depend partially on larger neighborhoods.
  */
 public class Life3D extends Application {
 	private int maxExtent = 16; // This defines the maximum offset allowed.
@@ -66,6 +72,10 @@ public class Life3D extends Application {
 			{ 1, 1, 1, 1 }, // 7
 			{ 1, 1, 2, 2 }, // 8
 			{ 0, 0, 1, 1 }, // 9
+			{ 1, 2, 0, 0 }, // 10
+			{ 3, 4, 1, 3 }, // 11
+			{19,20,3,5}, // 12
+			{ 3, 4, 1, 3 }, // random
 	};
 	private static int ruleIndex = 5;
 
@@ -319,11 +329,11 @@ public class Life3D extends Application {
 					ruleIndex = 1;
 					makeTitle();
 					break;
-				case PLUS:
+				case PAGE_UP:
 					maxExtent++;
 					System.out.println("Set maxExtent to " + maxExtent);
 					break;
-				case MINUS:
+				case PAGE_DOWN:
 					if (maxExtent>5) {
 						maxExtent--;
 						System.out.println("Set maxExtent to " + maxExtent);
@@ -361,6 +371,18 @@ public class Life3D extends Application {
 					ruleIndex = 9;
 					makeTitle();
 					break;
+				case MINUS:
+					ruleIndex = 10;
+					makeTitle();
+					break;
+				case EQUALS:
+					ruleIndex = 11;
+					makeTitle();
+					break;
+				case BACK_SPACE:
+					ruleIndex = 12;
+					makeTitle();
+					break;
 				case V:
 					cameraXform.t.setZ(0);
 					cameraXform.rx.setAngle(0);
@@ -395,6 +417,10 @@ public class Life3D extends Application {
 					world.requestLayout();
 					break;
 				case R:
+					if (ke.isShiftDown()) {
+						randomRule();
+						ruleIndex = rules.length-1;
+					}
 					world.getChildren().removeAll(shapes);
 					shapes.clear();
 					shapeMap.clear();
@@ -488,7 +514,7 @@ public class Life3D extends Application {
 		return countNeighbors(i, j, k);
 	}
 
-	private int countNeighbors(int i, int j, int k) {
+	private int countNeighbors(final int i, final int j, final int k) {
 		int count = 0;
 		for (int deltaX = -1; deltaX < 2; deltaX++) {
 			Map<Integer, Map<Integer, Shape3D>> map2 = shapeMap.get(i + deltaX);
@@ -596,52 +622,38 @@ public class Life3D extends Application {
 	}
 
 	private void update() {
-		List<Shape3D> shapesToDelete = new ArrayList<Shape3D>();
-		Set<IJK> candidatesToAdd = new HashSet<IJK>();
-		int rule[] = rules[ruleIndex];
+		final List<Shape3D> shapesToDelete = new ArrayList<Shape3D>();
+		final int rule[] = rules[ruleIndex];
+		// Survive?
 		for (Shape3D shape : shapes) {
 			int count = countNeighbors(shape);
 			if (count >= rule[0] && count <= rule[1]) {
+				// survive
 			} else {
 				shapesToDelete.add(shape);
 			}
-			int i = getI(shape);
-			int j = getJ(shape);
-			int k = getK(shape);
-			if (Math.abs(i) > maxExtent || Math.abs(j) > maxExtent || Math.abs(k) > maxExtent) {
-				continue;
-			}
-			for (int deltaX = -1; deltaX < 2; deltaX++) {
-				for (int deltaY = -1; deltaY < 2; deltaY++) {
-					for (int deltaZ = -1; deltaZ < 2; deltaZ++) {
-						if (deltaX != 0 || deltaY != 0 || deltaZ != 0) {
-							if (getShape(i + deltaX, j + deltaY, k + deltaZ) == null) {
-								candidatesToAdd.add(new IJK(i + deltaX, j + deltaY, k + deltaZ));
-							}
+			
+		}
+		// Born?
+		final List<IJK> ijksToBeBorn = new ArrayList<IJK>();
+		for (int x = -maxExtent; x <= maxExtent; x++) {
+			for (int y = -maxExtent; y <= maxExtent; y++) {
+				for (int z = -maxExtent; z <= maxExtent; z++) {
+					if (getShape(x,y,z)!=null) {
+						continue;
+					}
+					int neighbors = countNeighbors(x, y, z);
+					if (neighbors >= rule[2] && neighbors <= rule[3]) {
+						int total = shapes.size() + ijksToBeBorn.size();
+						if (total < 1000000 || random.nextInt(500000) > total) {
+							ijksToBeBorn.add(new IJK(x, y, z));
 						}
+						// System.out.println("Adding " + i + " " + j + " " + k);
 					}
 				}
 			}
 		}
-		System.out.println(candidatesToAdd.size() + " candidates ");
-		/// ---------------------------------
-
-		List<IJK> ijksToBeBorn = new ArrayList<IJK>();
-		for (IJK ijk : candidatesToAdd) {
-			int i = ijk.i;
-			int j = ijk.j;
-			int k = ijk.k;
-			int neighbors = countNeighbors(i, j, k);
-			// System.out.println(neighbors);
-			if (neighbors >= rule[2] && neighbors <= rule[3]) {
-				int total = shapes.size() + ijksToBeBorn.size();
-				if (total < 1000000 || random.nextInt(500000) > total) {
-					ijksToBeBorn.add(ijk);
-				}
-				// System.out.println("Adding " + i + " " + j + " " + k);
-			}
-		}
-		//
+		// Delete dead ones
 		for (Shape3D shape : shapesToDelete) {
 			int i = getI(shape);
 			int j = getJ(shape);
@@ -650,10 +662,7 @@ public class Life3D extends Application {
 			shapes.remove(shape);
 			world.getChildren().remove(shape);
 		}
-		// Modify xisting shapes
-		// for(Shape3D shape:shapes) {
-		// }
-
+		// Add newones:
 		for (IJK ijk : ijksToBeBorn) {
 			draw(ijk.i, ijk.j, ijk.k);
 		}
@@ -685,7 +694,7 @@ public class Life3D extends Application {
 		return sb.toString();
 	}
 
-	private static final String HELP_MESSAGE="Press SPACE to pause/continue, r to re-initialize, L to load shape, q to quit, "
+	private static final String HELP_MESSAGE="Press SPACE to pause/continue, r for random simple shape, R for random rule, L to load shape, q to quit, "
 			+ "0 - 9 to choose an update rule, s for slower, f for faster, arrow keys or click and drag mouse to navigate.";
 	private void makeTitle() {
 		primaryStage.setTitle("Life3D:  " + HELP_MESSAGE
@@ -878,6 +887,15 @@ public class Life3D extends Application {
 		}
 	}
 
+	private void randomRule() {
+		int surviveLow = random.nextInt(20);
+		int surviceHigh= surviveLow + random.nextInt(24-surviveLow);
+		int bornLow = random.nextInt(20);
+		int bornHigh= bornLow + random.nextInt(24-surviveLow);
+		int[] rule = {surviveLow,surviceHigh,bornLow, bornHigh};
+		System.out.println(Arrays.toString(rule));
+		rules[rules.length-1] = rule;
+	}
 	private void draw() {
 		switch (random.nextInt(17)) {
 		case 0:
