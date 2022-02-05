@@ -56,7 +56,9 @@ import javafx.stage.Stage;
  * TODO: make update depend partially on larger neighborhoods.
  */
 public class Life3D extends Application {
-	private int maxExtent = 16; // This defines the maximum offset allowed.
+	private int maxExtent = 16; // This defines the maximum number of positions allowed in each direction x, y, and z.
+	// So, maxExtent = 16 means there are 16*16*16 = 4096 positions for cubes.
+	// PAGE_UP and PAGE_DOWN increase/decrease this
 	public static String initialDirectory="shapes"; // set to something like "c:/tmp/" to load from that directory
 	private static boolean useRandomMaterials = false; // false makes it use hsb
 														// colors

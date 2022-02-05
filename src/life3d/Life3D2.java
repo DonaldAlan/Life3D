@@ -56,7 +56,8 @@ import javafx.stage.Stage;
  * TODO: make update depend partially on larger neighborhoods.
  */
 public class Life3D2 extends Application {
-	private int maxExtent = 16; // This defines the maximum offset allowed.  PAGE_UP and PAGE_DOWN increase/decrease this
+	private int maxExtent = 16; // This defines the maximum number of positions allowed in each direction x, y, and z.
+	// So, maxExtent = 16 means there are 16*16*16 = 4096 positions for cubes.
 	private int halfMaxExtent = maxExtent/2;
 	// Shapes displayed on the screen are centered at (0,0,0) and x,y,z range from -maxExtent to +maxExtent inclusive.
 	// But in the matrix below, indices range from 0 to maxExtent inclusive.
