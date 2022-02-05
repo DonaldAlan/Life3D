@@ -44,7 +44,7 @@ import javafx.stage.Stage;
  * 
  * @author Donald A. Smith, ThinkerFeeler@gmail.com
  * 
- * Press SPACE to pause/continue, r to randomize initial shape, R to randomize rule, L to load a shape, q to quit,
+ * Press SPACE to pause/continue, r to re-initialize, L to load a shape, q to quit,
  * 0 - 9 to choose an update rule, s for slower, f for faster, arrow keys or 
  * click and drag mouse to navigate.    Press PAGE_UP to increase maxExent, PAGE_DOWN to decrease maxExtent.
  * 
@@ -55,11 +55,15 @@ import javafx.stage.Stage;
  * TODO: compute 4D life and project to 3d
  * TODO: make update depend partially on larger neighborhoods.
  */
-public class Life3D extends Application {
-	private int maxExtent = 16; // This defines the maximum offset allowed.
+public class Life3D2 extends Application {
+	private int maxExtent = 16; // This defines the maximum offset allowed.  PAGE_UP and PAGE_DOWN increase/decrease this
+	private int halfMaxExtent = maxExtent/2;
+	// Shapes displayed on the screen are centered at (0,0,0) and x,y,z range from -maxExtent to +maxExtent inclusive.
+	// But in the matrix below, indices range from 0 to maxExtent inclusive.
+	private Shape3D[][][] matrix = new Shape3D[maxExtent+1][maxExtent+1][maxExtent+1];
+
 	public static String initialDirectory="shapes"; // set to something like "c:/tmp/" to load from that directory
-	private static boolean useRandomMaterials = false; // false makes it use hsb
-														// colors
+	private static boolean useRandomMaterials = false; // false makes it use hsb colors
 	// surviveLow,surviveHigh, bornLow,bornHigh
 	private static final int[][] rules =
 			{ { 1, 3, 2, 3 }, // 0
@@ -105,10 +109,8 @@ public class Life3D extends Application {
 	private PointLight light1;
 	private PointLight light2;
 	private Set<Shape3D> shapes = new HashSet<Shape3D>();
-	private Map<Integer, Map<Integer, Map<Integer, Shape3D>>> shapeMap = new HashMap<Integer, Map<Integer, Map<Integer, Shape3D>>>();
 	private Stage primaryStage;
 	private int speedInMls = 1600;
-
 	// --------------
 	static {
 		randomizeColorsAndMaterials();
@@ -125,7 +127,7 @@ public class Life3D extends Application {
 			randomMaterials.add(pm);
 		}
 		for (int i = 0; i < NUMBER_OF_HSB_COLORS; i++) {
-			Color color = Color.hsb((360.0 * i) / NUMBER_OF_HSB_COLORS, 0.8, 0.8);
+			Color color = Color.hsb((360.0 * i) / NUMBER_OF_HSB_COLORS, 0.8, 0.8, 0.5);
 			// color = new
 			// Color(color.getRed(),color.getGreen(),color.getBlue(),0.7);
 			PhongMaterial pm = new PhongMaterial();
@@ -135,60 +137,35 @@ public class Life3D extends Application {
 	}
 
 	// --------------------------
-	private Shape3D getShape(Integer i, Integer j, Integer k) {
-		Map<Integer, Map<Integer, Shape3D>> map2 = shapeMap.get(i);
-		if (map2 == null) {
-			return null;
-		}
-		Map<Integer, Shape3D> map3 = map2.get(j);
-		if (map3 == null) {
-			return null;
-		}
-		return map3.get(k);
+	private Shape3D getShape(int i, int j, int k) {
+		i+= halfMaxExtent; j+=halfMaxExtent; k+=halfMaxExtent;
+//		if (i<0 || i>=maxExtent || j<0 || j>=maxExtent || k<0 || k>= maxExtent) {
+//			return null;
+//		}
+		return matrix[i][j][k];
 	}
 
 	// --------------------------
-	private boolean deleteShape(Integer i, Integer j, Integer k) {
-		Map<Integer, Map<Integer, Shape3D>> map2 = shapeMap.get(i);
-		if (map2 == null) {
-			return false;
-		}
-		Map<Integer, Shape3D> map3 = map2.get(j);
-		if (map3 == null) {
-			return false;
-		}
-		boolean result = map3.remove(k) != null;
-		if (map3.isEmpty()) {
-			map2.remove(j);
-			if (map2.isEmpty()) {
-				shapeMap.remove(i);
-			}
-		}
-		return result;
+	private void deleteShape(int i, int j, int k) {
+		i+= halfMaxExtent; j+=halfMaxExtent; k+=halfMaxExtent;
+		matrix[i][j][k]= null;
 	}
 
 	// ------------------------
-	private void setShape(Integer i, Integer j, Integer k, Shape3D shape) {
-		Map<Integer, Map<Integer, Shape3D>> map2 = shapeMap.get(i);
-		if (map2 == null) {
-			map2 = new HashMap<Integer, Map<Integer, Shape3D>>();
-			shapeMap.put(i, map2);
-		}
-		Map<Integer, Shape3D> map3 = map2.get(j);
-		if (map3 == null) {
-			map3 = new HashMap<Integer, Shape3D>();
-			map2.put(j, map3);
-		}
-		map3.put(k, shape);
+	private void setShape(int i, int j, int k, Shape3D shape) {
+		i+= halfMaxExtent; j+=halfMaxExtent; k+=halfMaxExtent;
+		matrix[i][j][k]= shape;
 	}
 
 	// -------------------------
-	private static class XformWorld extends Group {
+	private class XformWorld extends Group {
 		final Translate t = new Translate(0.0, 0.0, 0.0);
+//		final Rotate rx = new Rotate(0, extentOffset, extentOffset, extentOffset, Rotate.X_AXIS);
+//		final Rotate ry = new Rotate(0, extentOffset, extentOffset, extentOffset, Rotate.Y_AXIS);
+//		final Rotate rz = new Rotate(0, extentOffset, extentOffset, extentOffset, Rotate.Z_AXIS);
 		final Rotate rx = new Rotate(0, 0, 0, 0, Rotate.X_AXIS);
 		final Rotate ry = new Rotate(0, 0, 0, 0, Rotate.Y_AXIS);
 		final Rotate rz = new Rotate(0, 0, 0, 0, Rotate.Z_AXIS);
-
 		public XformWorld() {
 			super();
 			this.getTransforms().addAll(t, rx, ry, rz);
@@ -252,7 +229,6 @@ public class Life3D extends Application {
 	}
 
 	private void handleMouse(Scene scene) {
-		final double bigSize = 10;
 		scene.setOnMousePressed((MouseEvent me) -> {
 			mousePosX = me.getSceneX();
 			mousePosY = me.getSceneY();
@@ -330,12 +306,19 @@ public class Life3D extends Application {
 					makeTitle();
 					break;
 				case PAGE_UP:
-					maxExtent++;
+					clear();
+					maxExtent+=2;
+					halfMaxExtent++;
 					System.out.println("Set maxExtent to " + maxExtent);
+					matrix = new Shape3D[maxExtent+1][maxExtent+1][maxExtent+1];
+					drawLittleSphere2();
 					break;
 				case PAGE_DOWN:
-					if (maxExtent>5) {
-						maxExtent--;
+					if (maxExtent>7) {
+						clear();
+						maxExtent-=2;
+						halfMaxExtent--;
+						drawLittleSphere2();
 						System.out.println("Set maxExtent to " + maxExtent);
 					}
 					break;
@@ -421,9 +404,7 @@ public class Life3D extends Application {
 						randomRule();
 						ruleIndex = rules.length-1;
 					}
-					world.getChildren().removeAll(shapes);
-					shapes.clear();
-					shapeMap.clear();
+					clear();
 					draw();
 					isRunning=true;
 					break;
@@ -438,7 +419,20 @@ public class Life3D extends Application {
 			}
 		});
 	}
-	
+	private void clear() {
+		world.getChildren().removeAll(shapes);
+		shapes.clear();
+		clearShapesMatrix();
+	}
+	private void clearShapesMatrix() {
+		for(int i=0;i<maxExtent;i++) {
+			for(int j=0;j<maxExtent;j++) {
+				for(int k=0;k<maxExtent;k++) {
+					matrix[i][j][k]=null;
+				}
+			}
+		}
+	}
 	private void load() throws IOException {
 		isRunning=false;
 		JFileChooser chooser = new JFileChooser();
@@ -485,9 +479,7 @@ public class Life3D extends Application {
 				listOfLocations.add(new int[] {x,y,z});
 			} // while
 			reader.close();
-			world.getChildren().removeAll(shapes);
-			shapes.clear();
-			shapeMap.clear();
+			clear();
 			for(int[] shape: listOfLocations) {
 				draw(shape[0],shape[1],shape[2]);
 			}
@@ -496,39 +488,33 @@ public class Life3D extends Application {
 		}
 	}
 
-	private void scaleRadius(Shape3D shape, double scale) {
-		if (shape instanceof Cylinder) {
-			Cylinder cylinder = (Cylinder) shape;
-			cylinder.setRadius(scale * cylinder.getRadius());
-		} else if (shape instanceof Sphere) {
-			shape.setScaleX(shape.getScaleX() * scale);
-			shape.setScaleY(shape.getScaleY() * scale);
-			shape.setScaleZ(shape.getScaleZ() * scale);
-		}
-	}
-
 	private int countNeighbors(Shape3D shape) {
 		int i = getI(shape);
 		int j = getJ(shape);
 		int k = getK(shape);
-		return countNeighbors(i, j, k);
+		return countNeighbors(i+halfMaxExtent, j+halfMaxExtent, k+halfMaxExtent);
 	}
 
+	// i, j, k are indices into matrix
 	private int countNeighbors(final int i, final int j, final int k) {
 		int count = 0;
 		for (int deltaX = -1; deltaX < 2; deltaX++) {
-			Map<Integer, Map<Integer, Shape3D>> map2 = shapeMap.get(i + deltaX);
-			if (map2 == null) {
+			final int ii=i+deltaX;
+			if (ii<0 || ii> maxExtent) {
 				continue;
 			}
 			for (int deltaY = -1; deltaY < 2; deltaY++) {
-				Map<Integer, Shape3D> map3 = map2.get(j + deltaY);
-				if (map3 == null) {
+				final int jj= j+deltaY;
+				if (jj<0 || jj> maxExtent) {
 					continue;
 				}
 				for (int deltaZ = -1; deltaZ < 2; deltaZ++) {
 					if (deltaX != 0 || deltaY != 0 || deltaZ != 0) {
-						if (map3.get(k + deltaZ) != null) {
+						final int kk = k+deltaZ;
+						if (kk < 0 || kk > maxExtent) {
+							continue;
+						}
+						if (matrix[ii][jj][kk]!=null) {
 							count++;
 						}
 					}
@@ -551,7 +537,12 @@ public class Life3D extends Application {
 		}
 	}
 
+	// i, j, and k are between -halfMaxExtent and halfMaxExtent, inclusive
 	private void draw(int i, int j, int k) {
+		assert(i>= -halfMaxExtent && i<= halfMaxExtent);
+		assert(j>= -halfMaxExtent && j<= halfMaxExtent);
+		assert(k>= -halfMaxExtent && k<= halfMaxExtent);
+		//System.out.println("draw(" + i + ", " + j + ", " + k + ")");
 		if (getShape(i,j,k)!=null) {
 			System.err.println("Warning: shape already exists at " + i + ", " + j + ", " + k);
 			return;
@@ -561,7 +552,7 @@ public class Life3D extends Application {
 		// shape.setRotationAxis(new
 		// Point3D(oneOrMinusOne(),oneOrMinusOne(),oneOrMinusOne()));
 		// shape.setRotate(360*random.nextDouble());
-		int distance = // Math.abs(i) + Math.abs(j) + Math.abs(k); // Manhattan
+		final int distance = // Math.abs(i) + Math.abs(j) + Math.abs(k); // Manhattan
 						// distance
 				(int) (5 * Math.sqrt(square(i) + square(j) + square(k)));
 		// System.out.println(distance);
@@ -583,9 +574,16 @@ public class Life3D extends Application {
 		setShape(i, j, k, shape);
 		shapes.add(shape);
 	}
+	private int getI(Shape3D shape) {
+		return (int) Math.round(shape.getTranslateX() / 10);
+	}
 
-	private double oneOrMinusOne() {
-		return random.nextBoolean() ? -1.0 : 1.0;
+	private int getJ(Shape3D shape) {
+		return (int) Math.round(shape.getTranslateY() / 10);
+	}
+
+	private int getK(Shape3D shape) {
+		return (int) Math.round(shape.getTranslateZ() / 10);
 	}
 
 	private static double square(double x) {
@@ -613,18 +611,6 @@ public class Life3D extends Application {
 		}
 	}
 
-	private static int getI(Shape3D shape) {
-		return (int) Math.round(shape.getTranslateX() / 10);
-	}
-
-	private static int getJ(Shape3D shape) {
-		return (int) Math.round(shape.getTranslateY() / 10);
-	}
-
-	private static int getK(Shape3D shape) {
-		return (int) Math.round(shape.getTranslateZ() / 10);
-	}
-
 	private void update() {
 		final List<Shape3D> shapesToDelete = new ArrayList<Shape3D>();
 		final int rule[] = rules[ruleIndex];
@@ -640,13 +626,13 @@ public class Life3D extends Application {
 		}
 		// Born?
 		final List<IJK> ijksToBeBorn = new ArrayList<IJK>();
-		for (int x = -maxExtent; x <= maxExtent; x++) {
-			for (int y = -maxExtent; y <= maxExtent; y++) {
-				for (int z = -maxExtent; z <= maxExtent; z++) {
+		for (int x = -halfMaxExtent;  x <= halfMaxExtent; x++) {
+			for (int y = -halfMaxExtent;  y <= halfMaxExtent; y++) {
+				for (int z = -halfMaxExtent; z <= halfMaxExtent; z++) {
 					if (getShape(x,y,z)!=null) {
 						continue;
 					}
-					int neighbors = countNeighbors(x, y, z);
+					int neighbors = countNeighbors(x+halfMaxExtent, y+halfMaxExtent, z+halfMaxExtent);
 					if (neighbors >= rule[2] && neighbors <= rule[3]) {
 						int total = shapes.size() + ijksToBeBorn.size();
 						if (total < 1000000 || random.nextInt(500000) > total) {
@@ -987,12 +973,17 @@ public class Life3D extends Application {
 					return;
 				}
 				last[0] = nowInNanoSeconds;
-				update();
+				try {
+					update();
+				} catch (Exception exc) {
+					exc.printStackTrace();
+				}
 				makeTitle();
 				world.requestLayout();
 				if (shapes.isEmpty()) {
 					isRunning=false;
 				}
+				//isRunning=false; // temp
 			}
 		};
 		timer.start();
@@ -1001,6 +992,14 @@ public class Life3D extends Application {
 	// ------------
 	@Override
 	public void start(Stage stage) throws Exception {
+		try {
+			startAux(stage);
+		} catch (Throwable thr) {
+			thr.printStackTrace();
+			System.exit(1);
+		}
+	}
+	private void startAux(Stage stage) throws Exception {
 		primaryStage = stage;
 		sphereMaterial1.setDiffuseColor(new Color(1, 0, 0, 1.0));
 		sphereMaterial2.setDiffuseColor(Color.BLUE);
