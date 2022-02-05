@@ -319,6 +319,7 @@ public class Life3D2 extends Application {
 						clear();
 						maxExtent-=2;
 						halfMaxExtent--;
+						matrix = new Shape3D[maxExtent+1][maxExtent+1][maxExtent+1];
 						drawLittleSphere2();
 						System.out.println("Set maxExtent to " + maxExtent);
 					}
