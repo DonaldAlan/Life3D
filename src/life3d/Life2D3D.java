@@ -44,6 +44,8 @@ import javafx.stage.Stage;
  * 
  * @author Donald A. Smith, ThinkerFeeler@gmail.com
  * 
+ * Life2D but showing history in 3D.
+ * 
  * Press SPACE to pause/continue, r to re-initialize, L to load a shape, q to quit,
  * 0 - 9 to choose an update rule, s for slower, f for faster, arrow keys or 
  * click and drag mouse to navigate.    Press PAGE_UP to increase maxExent, PAGE_DOWN to decrease maxExtent.
@@ -111,31 +113,10 @@ public class Life2D3D extends Application {
 	private PointLight light2;
 	private Set<Shape3D> shapes = new HashSet<Shape3D>();
 	private Stage primaryStage;
-	private int speedInMls = 1600;
+	private int delayBetweenStepsInMls = 800;
+	private int z = 0;
+	private PhongMaterial material = new PhongMaterial(Color.hsb(0, 1.0, 1.0,0.5));
 	// --------------
-	static {
-		randomizeColorsAndMaterials();
-	}
-
-	// ---------------------------------
-	private static void randomizeColorsAndMaterials() {
-		randomMaterials.clear();
-		for (int i = 0; i < NUMBER_OF_RANDOM_COLORS; i++) {
-			Color color = randomColorExpensive();
-			PhongMaterial pm = new PhongMaterial();
-			// pm.setSpecularColor(randomColorExpensive());
-			pm.setDiffuseColor(color);
-			randomMaterials.add(pm);
-		}
-		for (int i = 0; i < NUMBER_OF_HSB_COLORS; i++) {
-			Color color = Color.hsb((360.0 * i) / NUMBER_OF_HSB_COLORS, 0.8, 0.8, 0.5);
-			// color = new
-			// Color(color.getRed(),color.getGreen(),color.getBlue(),0.7);
-			PhongMaterial pm = new PhongMaterial();
-			pm.setDiffuseColor(color);
-			hsbMaterials.add(pm);
-		}
-	}
 
 	// --------------------------
 	private Shape3D getShape(int i, int j) {
@@ -167,18 +148,15 @@ public class Life2D3D extends Application {
 		public XformWorld() {
 			super();
 			this.getTransforms().addAll(t, rx, ry, rz);
-			rx.setAngle(5);
-			ry.setAngle(40);
-			rz.setAngle(-1);
 		}
 	}
 
 	// -------------------------
 	private static class XformCamera extends Group {
-		final Translate t = new Translate(0.0, 0.0, 0.0);
-		final Rotate rx = new Rotate(16, 0, 0, 0, Rotate.X_AXIS);
-		final Rotate ry = new Rotate(-15, 0, 0, 0, Rotate.Y_AXIS);
-		final Rotate rz = new Rotate(-5, 0, 0, 0, Rotate.Z_AXIS);
+		final Translate t = new Translate(400.0, 0.0, 0.0);
+		final Rotate rx = new Rotate(0, 0, 0, 0, Rotate.X_AXIS);
+		final Rotate ry = new Rotate(-49, 0, 0, 0, Rotate.Y_AXIS);
+		final Rotate rz = new Rotate(0, 0, 0, 0, Rotate.Z_AXIS);
 
 		public XformCamera() {
 			super();
@@ -393,11 +371,6 @@ public class Life2D3D extends Application {
 						camera.setTranslateZ(camera.getTranslateZ() - 10);
 					}
 					break;
-				case C:					
-					randomizeColorsAndMaterials();
-					updateColors();
-					world.requestLayout();
-					break;
 				case R:
 					if (ke.isShiftDown()) {
 						randomRule();
@@ -408,10 +381,10 @@ public class Life2D3D extends Application {
 					isRunning=true;
 					break;
 				case S:
-					speedInMls = (int) (1.1 * speedInMls);
+					delayBetweenStepsInMls = (int) (1.1 * delayBetweenStepsInMls);
 					break;
 				case F:
-					speedInMls = (int) (speedInMls / 1.1);
+					delayBetweenStepsInMls = (int) (delayBetweenStepsInMls / 1.1);
 					break;
 				default:
 				}
@@ -419,7 +392,7 @@ public class Life2D3D extends Application {
 		});
 	}
 	private void clear() {
-		world.getChildren().removeAll(shapes);
+		world.getChildren().clear();
 		shapes.clear();
 		clearShapesMatrix();
 	}
@@ -503,21 +476,12 @@ public class Life2D3D extends Application {
 				if (jj<0 || jj> maxExtent) {
 					continue;
 				}
-				count++;
+				if (matrix2D[ii][jj]!=null) {
+					count++;
+				}
 			}
 		}
 		return count;
-	}
-
-	private void updateColors() {
-		for (Shape3D shape : shapes) {
-			int i = getI(shape);
-			int j = getJ(shape);
-			int distance = Math.abs(i) + Math.abs(j); // Manhattan distance
-			// System.out.println(distance);
-			PhongMaterial material = randomMaterials.get(distance % randomMaterials.size());
-			shape.setMaterial(material);
-		}
 	}
 
 	// i, j, and k are between -halfMaxExtent and halfMaxExtent, inclusive
@@ -531,19 +495,10 @@ public class Life2D3D extends Application {
 		}
 		Box shape = new Box(7, 7, 7);
 		final int distance = (int) (5 * Math.sqrt(square(i) + square(j)));
-		PhongMaterial material;
-		int materialIndex;
-		if (useRandomMaterials) {
-			materialIndex = distance % randomMaterials.size();
-			material = randomMaterials.get(materialIndex);
-		} else {
-			materialIndex = distance % hsbMaterials.size();
-			material = hsbMaterials.get(materialIndex);
-		}
-		// shape.setUserData(new int[] {materialIndex});
 		shape.setMaterial(material);
 		shape.setTranslateX(i * 10);
 		shape.setTranslateY(j * 10);
+		shape.setTranslateZ(z);
 		world.getChildren().add(shape);
 		setShape(i, j, shape);
 		shapes.add(shape);
@@ -584,6 +539,9 @@ public class Life2D3D extends Application {
 		final List<Shape3D> shapesToDelete = new ArrayList<Shape3D>();
 		final int rule[] = rules[ruleIndex];
 		// Survive?
+		if (shapes.isEmpty()) {
+			return;
+		}
 		for (Shape3D shape : shapes) {
 			int count = countNeighbors(shape);
 			if (count >= rule[0] && count <= rule[1]) {
@@ -606,7 +564,6 @@ public class Life2D3D extends Application {
 						if (total < 1000000 || random.nextInt(500000) > total) {
 							ijsToBeBorn.add(new IJ(x, y));
 						}
-						// System.out.println("Adding " + i + " " + j + " " + k);
 				}
 			}
 		}
@@ -616,8 +573,9 @@ public class Life2D3D extends Application {
 			int j = getJ(shape);
 			deleteShape(i, j);
 			shapes.remove(shape);
-			world.getChildren().remove(shape);
 		}
+		z+= 15;
+		material = new PhongMaterial(Color.hsb(3*z, 0.8, 1.0,0.5));
 		// Add newones:
 		for (IJ ij : ijsToBeBorn) {
 			draw(ij.i, ij.j);
@@ -912,9 +870,9 @@ public class Life2D3D extends Application {
 				if (!isRunning) {
 					return;
 				}
-				cameraXform.rz.setAngle(cameraXform.rz.getAngle() + 0.2);
+				//cameraXform.rz.setAngle(cameraXform.rz.getAngle() + 0.2);
 				// running=false;
-				if (nowInNanoSeconds - last[0] < speedInMls * ONE_MILLISECOND_IN_NANOSECONDS) {
+				if (nowInNanoSeconds - last[0] < delayBetweenStepsInMls * ONE_MILLISECOND_IN_NANOSECONDS) {
 					return;
 				}
 				last[0] = nowInNanoSeconds;
@@ -926,6 +884,7 @@ public class Life2D3D extends Application {
 				makeTitle();
 				world.requestLayout();
 				if (shapes.isEmpty()) {
+					System.out.println("No more shapes");
 					isRunning=false;
 				}
 				//isRunning=false; // temp
