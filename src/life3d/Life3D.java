@@ -611,7 +611,7 @@ public class Life3D extends Application {
 
 		@Override
 		public int hashCode() {
-			return i * 17 + j + 19 + k;
+			return i * 7 + j*29 + 19 * k;
 		}
 	}
 

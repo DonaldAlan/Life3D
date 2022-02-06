@@ -55,13 +55,13 @@ import javafx.stage.Stage;
  * TODO: compute 4D life and project to 3d
  * TODO: make update depend partially on larger neighborhoods.
  */
-public class Life3D2 extends Application {
+public class Life2D3D extends Application {
 	private int maxExtent = 16; // This defines the maximum number of positions allowed in each direction x, y, and z.
 	// So, maxExtent = 16 means there are 16*16*16 = 4096 positions for cubes.
 	private int halfMaxExtent = maxExtent/2;
 	// Shapes displayed on the screen are centered at (0,0,0) and x,y,z range from -maxExtent to +maxExtent inclusive.
 	// But in the matrix below, indices range from 0 to maxExtent inclusive.
-	private Shape3D[][][] matrix = new Shape3D[maxExtent+1][maxExtent+1][maxExtent+1];
+	private Shape3D[][] matrix2D = new Shape3D[maxExtent+1][maxExtent+1];
 
 	public static String initialDirectory="shapes"; // set to something like "c:/tmp/" to load from that directory
 	private static boolean useRandomMaterials = false; // false makes it use hsb colors
@@ -138,24 +138,21 @@ public class Life3D2 extends Application {
 	}
 
 	// --------------------------
-	private Shape3D getShape(int i, int j, int k) {
-		i+= halfMaxExtent; j+=halfMaxExtent; k+=halfMaxExtent;
-//		if (i<0 || i>=maxExtent || j<0 || j>=maxExtent || k<0 || k>= maxExtent) {
-//			return null;
-//		}
-		return matrix[i][j][k];
+	private Shape3D getShape(int i, int j) {
+		i+= halfMaxExtent; j+=halfMaxExtent;
+		return matrix2D[i][j];
 	}
 
 	// --------------------------
-	private void deleteShape(int i, int j, int k) {
-		i+= halfMaxExtent; j+=halfMaxExtent; k+=halfMaxExtent;
-		matrix[i][j][k]= null;
+	private void deleteShape(int i, int j) {
+		i+= halfMaxExtent; j+=halfMaxExtent;
+		matrix2D[i][j]= null;
 	}
 
 	// ------------------------
-	private void setShape(int i, int j, int k, Shape3D shape) {
-		i+= halfMaxExtent; j+=halfMaxExtent; k+=halfMaxExtent;
-		matrix[i][j][k]= shape;
+	private void setShape(int i, int j, Shape3D shape) {
+		i+= halfMaxExtent; j+=halfMaxExtent; 
+		matrix2D[i][j]= shape;
 	}
 
 	// -------------------------
@@ -311,7 +308,7 @@ public class Life3D2 extends Application {
 					maxExtent+=2;
 					halfMaxExtent++;
 					System.out.println("Set maxExtent to " + maxExtent);
-					matrix = new Shape3D[maxExtent+1][maxExtent+1][maxExtent+1];
+					matrix2D = new Shape3D[maxExtent+1][maxExtent+1];
 					drawLittleSphere2();
 					break;
 				case PAGE_DOWN:
@@ -319,7 +316,7 @@ public class Life3D2 extends Application {
 						clear();
 						maxExtent-=2;
 						halfMaxExtent--;
-						matrix = new Shape3D[maxExtent+1][maxExtent+1][maxExtent+1];
+						matrix2D = new Shape3D[maxExtent+1][maxExtent+1];
 						drawLittleSphere2();
 						System.out.println("Set maxExtent to " + maxExtent);
 					}
@@ -429,9 +426,7 @@ public class Life3D2 extends Application {
 	private void clearShapesMatrix() {
 		for(int i=0;i<maxExtent;i++) {
 			for(int j=0;j<maxExtent;j++) {
-				for(int k=0;k<maxExtent;k++) {
-					matrix[i][j][k]=null;
-				}
+				matrix2D[i][j]=null;
 			}
 		}
 	}
@@ -477,13 +472,12 @@ public class Life3D2 extends Application {
 				}
 				int x= Integer.parseInt(parts[0]);
 				int y= Integer.parseInt(parts[1]);
-				int z= Integer.parseInt(parts[2]);
-				listOfLocations.add(new int[] {x,y,z});
+				listOfLocations.add(new int[] {x,y});
 			} // while
 			reader.close();
 			clear();
 			for(int[] shape: listOfLocations) {
-				draw(shape[0],shape[1],shape[2]);
+				draw(shape[0],shape[1]);
 			}
 			makeTitle();
 			isRunning=false;
@@ -493,12 +487,11 @@ public class Life3D2 extends Application {
 	private int countNeighbors(Shape3D shape) {
 		int i = getI(shape);
 		int j = getJ(shape);
-		int k = getK(shape);
-		return countNeighbors(i+halfMaxExtent, j+halfMaxExtent, k+halfMaxExtent);
+		return countNeighbors(i+halfMaxExtent, j+halfMaxExtent);
 	}
 
 	// i, j, k are indices into matrix
-	private int countNeighbors(final int i, final int j, final int k) {
+	private int countNeighbors(final int i, final int j) {
 		int count = 0;
 		for (int deltaX = -1; deltaX < 2; deltaX++) {
 			final int ii=i+deltaX;
@@ -510,17 +503,7 @@ public class Life3D2 extends Application {
 				if (jj<0 || jj> maxExtent) {
 					continue;
 				}
-				for (int deltaZ = -1; deltaZ < 2; deltaZ++) {
-					if (deltaX != 0 || deltaY != 0 || deltaZ != 0) {
-						final int kk = k+deltaZ;
-						if (kk < 0 || kk > maxExtent) {
-							continue;
-						}
-						if (matrix[ii][jj][kk]!=null) {
-							count++;
-						}
-					}
-				}
+				count++;
 			}
 		}
 		return count;
@@ -530,9 +513,7 @@ public class Life3D2 extends Application {
 		for (Shape3D shape : shapes) {
 			int i = getI(shape);
 			int j = getJ(shape);
-			int k = getK(shape);
-			int distance = Math.abs(i) + Math.abs(j) + Math.abs(k); // Manhattan
-																	// distance
+			int distance = Math.abs(i) + Math.abs(j); // Manhattan distance
 			// System.out.println(distance);
 			PhongMaterial material = randomMaterials.get(distance % randomMaterials.size());
 			shape.setMaterial(material);
@@ -540,24 +521,16 @@ public class Life3D2 extends Application {
 	}
 
 	// i, j, and k are between -halfMaxExtent and halfMaxExtent, inclusive
-	private void draw(int i, int j, int k) {
+	private void draw(int i, int j) {
 		assert(i>= -halfMaxExtent && i<= halfMaxExtent);
 		assert(j>= -halfMaxExtent && j<= halfMaxExtent);
-		assert(k>= -halfMaxExtent && k<= halfMaxExtent);
 		//System.out.println("draw(" + i + ", " + j + ", " + k + ")");
-		if (getShape(i,j,k)!=null) {
-			System.err.println("Warning: shape already exists at " + i + ", " + j + ", " + k);
+		if (getShape(i,j)!=null) {
+			System.err.println("Warning: shape already exists at " + i + ", " + j);
 			return;
 		}
-		// Sphere shape = new Sphere(3);
 		Box shape = new Box(7, 7, 7);
-		// shape.setRotationAxis(new
-		// Point3D(oneOrMinusOne(),oneOrMinusOne(),oneOrMinusOne()));
-		// shape.setRotate(360*random.nextDouble());
-		final int distance = // Math.abs(i) + Math.abs(j) + Math.abs(k); // Manhattan
-						// distance
-				(int) (5 * Math.sqrt(square(i) + square(j) + square(k)));
-		// System.out.println(distance);
+		final int distance = (int) (5 * Math.sqrt(square(i) + square(j)));
 		PhongMaterial material;
 		int materialIndex;
 		if (useRandomMaterials) {
@@ -571,9 +544,8 @@ public class Life3D2 extends Application {
 		shape.setMaterial(material);
 		shape.setTranslateX(i * 10);
 		shape.setTranslateY(j * 10);
-		shape.setTranslateZ(k * 10);
 		world.getChildren().add(shape);
-		setShape(i, j, k, shape);
+		setShape(i, j, shape);
 		shapes.add(shape);
 	}
 	private int getI(Shape3D shape) {
@@ -584,32 +556,27 @@ public class Life3D2 extends Application {
 		return (int) Math.round(shape.getTranslateY() / 10);
 	}
 
-	private int getK(Shape3D shape) {
-		return (int) Math.round(shape.getTranslateZ() / 10);
-	}
-
 	private static double square(double x) {
 		return x * x;
 	}
 
-	private static class IJK {
-		int i, j, k;
+	private static class IJ {
+		int i, j;
 
-		public IJK(int i, int j, int k) {
+		public IJ(int i, int j) {
 			this.i = i;
 			this.j = j;
-			this.k = k;
 		}
 
 		@Override
 		public boolean equals(Object obj) {
-			IJK other = (IJK) obj;
-			return i == other.i && j == other.j && k == other.k;
+			IJ other = (IJ) obj;
+			return i == other.i && j == other.j;
 		}
 
 		@Override
 		public int hashCode() {
-			return i * 7 + j * 19 + k*13;
+			return i * 17 + j*19;
 		}
 	}
 
@@ -627,21 +594,19 @@ public class Life3D2 extends Application {
 			
 		}
 		// Born?
-		final List<IJK> ijksToBeBorn = new ArrayList<IJK>();
+		final List<IJ> ijsToBeBorn = new ArrayList<IJ>();
 		for (int x = -halfMaxExtent;  x <= halfMaxExtent; x++) {
 			for (int y = -halfMaxExtent;  y <= halfMaxExtent; y++) {
-				for (int z = -halfMaxExtent; z <= halfMaxExtent; z++) {
-					if (getShape(x,y,z)!=null) {
+					if (getShape(x,y)!=null) {
 						continue;
 					}
-					int neighbors = countNeighbors(x+halfMaxExtent, y+halfMaxExtent, z+halfMaxExtent);
+					int neighbors = countNeighbors(x+halfMaxExtent, y+halfMaxExtent);
 					if (neighbors >= rule[2] && neighbors <= rule[3]) {
-						int total = shapes.size() + ijksToBeBorn.size();
+						int total = shapes.size() + ijsToBeBorn.size();
 						if (total < 1000000 || random.nextInt(500000) > total) {
-							ijksToBeBorn.add(new IJK(x, y, z));
+							ijsToBeBorn.add(new IJ(x, y));
 						}
 						// System.out.println("Adding " + i + " " + j + " " + k);
-					}
 				}
 			}
 		}
@@ -649,17 +614,16 @@ public class Life3D2 extends Application {
 		for (Shape3D shape : shapesToDelete) {
 			int i = getI(shape);
 			int j = getJ(shape);
-			int k = getK(shape);
-			deleteShape(i, j, k);
+			deleteShape(i, j);
 			shapes.remove(shape);
 			world.getChildren().remove(shape);
 		}
 		// Add newones:
-		for (IJK ijk : ijksToBeBorn) {
-			draw(ijk.i, ijk.j, ijk.k);
+		for (IJ ij : ijsToBeBorn) {
+			draw(ij.i, ij.j);
 		}
 		System.out.println(
-				"Added " + ijksToBeBorn.size() + " deleting " + shapesToDelete.size() + ", #shapes = " + shapes.size());
+				"Added " + ijsToBeBorn.size() + " deleting " + shapesToDelete.size() + ", #shapes = " + shapes.size());
 	}
 
 	private void drawRandom(int range) {
@@ -667,9 +631,8 @@ public class Life3D2 extends Application {
 		for (int c = 0; c < 4; c++) {
 			int i = random.nextInt(range) - halfRange;
 			int j = random.nextInt(range) - halfRange;
-			int k = random.nextInt(range) - halfRange;
-			if (getShape(i, j, k) == null) {
-				draw(i, j, k);
+			if (getShape(i, j) == null) {
+				draw(i, j);
 			}
 		}
 	}
@@ -698,31 +661,31 @@ public class Life3D2 extends Application {
 		/*
 		 * + + + +
 		 */
-		draw(0, 1, 0);
-		draw(0, -1, 0);
-		draw(-1, 0, 0);
-		draw(1, 0, 0);
+		draw(0, 1);
+		draw(0, -1);
+		draw(-1, 0);
+		draw(1, 0);
 	}
 
 	private void drawStar2() {
 		/*
 		 * + +++ +
 		 */
-		draw(0, 1, 0);
-		draw(0, -1, 0);
-		draw(0, 0, 0);
-		draw(-1, 0, 0);
-		draw(1, 0, 0);
+		draw(0, 1);
+		draw(0, -1);
+		draw(0, 0);
+		draw(-1, 0);
+		draw(1, 0);
 	}
 
 	private void drawSquare0() {
 		/*
 		 * + + + +
 		 */
-		draw(0, 0, 0);
-		draw(0, 1, 0);
-		draw(1, 0, 0);
-		draw(1, 1, 0);
+		draw(0, 0);
+		draw(0, 1);
+		draw(1, 0);
+		draw(1, 1);
 	}
 
 	private void drawSquare1() {
@@ -731,10 +694,10 @@ public class Life3D2 extends Application {
 		 * 
 		 * ++
 		 */
-		draw(0, 0, 0);
-		draw(0, 1, 0);
-		draw(2, 0, 0);
-		draw(2, 1, 0);
+		draw(0, 0);
+		draw(0, 1);
+		draw(2, 0);
+		draw(2, 1);
 	}
 
 	private void drawSquare2() {
@@ -743,22 +706,22 @@ public class Life3D2 extends Application {
 		 * 
 		 * + +
 		 */
-		draw(-1, 0, 0);
-		draw(-1, 2, 0);
+		draw(-1, 0);
+		draw(-1, 2);
 		// draw(1,1,0);
-		draw(1, 0, 0);
-		draw(1, 2, 0);
+		draw(1, 0);
+		draw(1, 2);
 	}
 
 	private void drawSquare3() {
 		/*
 		 * + + + + +
 		 */
-		draw(-1, -1, 0);
-		draw(-1, 1, 0);
-		draw(0, 0, 0);
-		draw(1, -1, 0);
-		draw(1, 1, 0);
+		draw(-1, -1);
+		draw(-1, 1);
+		draw(0, 0);
+		draw(1, -1);
+		draw(1, 1);
 	}
 
 	private void drawOffset1() {
@@ -767,100 +730,86 @@ public class Life3D2 extends Application {
 		 * 
 		 * + +
 		 */
-		draw(0, 0, 0);
-		draw(0, 2, 0);
-		// draw(1,1,0);
-		draw(2, 1, 0);
-		draw(2, 3, 0);
+		draw(0, 0);
+		draw(0, 2);
+		draw(2, 1);
+		draw(2, 3);
 	}
 
 	private void drawLine1() {
 		/*
 		 * +++
 		 */
-		draw(0, -1, 0);
-		draw(0, 0, 0);
-		draw(0, 1, 0);
+		draw(0, -1);
+		draw(0, 0);
+		draw(0, 1);
 	}
 
 	private void drawLine2() {
 		/*
 		 * + + +
 		 */
-		draw(0, -2, 0);
-		draw(0, 0, 0);
-		draw(0, 2, 0);
+		draw(0, -2);
+		draw(0, 0);
+		draw(0, 2);
 	}
 
 	private void drawLineCircle1() {
 		/*
 		 * + + + + + +
 		 */
-		draw(0, 0, 0);
-		draw(1, -1, 0);
-		draw(1, 1, 0);
-		draw(2, -1, 0);
-		draw(2, 1, 0);
-		draw(3, 0, 0);
+		draw(0, 0);
+		draw(1, -1);
+		draw(1, 1);
+		draw(2, -1);
+		draw(2, 1);
+		draw(3, 0);
 	}
 
 	private void drawLineCircle2() {
 		/*
 		 * ++ + + + + ++
 		 */
-		draw(0, 0, 0);
-		draw(0, 1, 0);
-		draw(1, -1, 0);
-		draw(1, 2, 0);
-		draw(2, -1, 0);
-		draw(2, 2, 0);
-		draw(3, 0, 0);
-		draw(3, 1, 0);
+		draw(0, 0);
+		draw(0, 1);
+		draw(1, -1);
+		draw(1, 2);
+		draw(2, -1);
+		draw(2, 2);
+		draw(3, 0);
+		draw(3, 1);
 	}
 
 	private void drawRectangle() {
 		/*
 		 * + + + + + +
 		 */
-		draw(-1, -1, 0);
-		draw(-1, 1, 0);
-		draw(0, -1, 0);
-		draw(0, 1, 0);
-		draw(1, -1, 0);
-		draw(1, 1, 0);
+		draw(-1, -1);
+		draw(-1, 1);
+		draw(0, -1);
+		draw(0, 1);
+		draw(1, -1);
+		draw(1, 1);
 	}
 
 	private void draw3DFour1() {
-		draw(0, 0, 0);
-		draw(0, 0, 1);
-		draw(0, 1, 0);
-		draw(0, 1, 1);
-		draw(1, 0, 0);
-		draw(1, 0, 1);
-		draw(1, 1, 0);
-		draw(1, 1, 1);
+		draw(0, 0);
+		draw(0, 0);
+		draw(0, 1);
+		draw(0, 1);
+		draw(1, 0);
+		draw(1, 0);
+		draw(1, 1);
+		draw(1, 1);
 	}
 
-	private void draw3DFour2() {
-		draw(0, 0, 0);
-		draw(-1, -1, -1);
-		draw(-1, -1, 1);
-		draw(-1, 1, -1);
-		draw(-1, 1, 1);
-		draw(1, -1, -1);
-		draw(1, -1, 1);
-		draw(1, 1, -1);
-		draw(1, 1, 1);
-	}
 
 	private void drawLittleSphere1() {
 		int[] list1 = { -1, 0, 1 };
 		for (int i : list1) {
 			for (int j : list1) {
-				for (int k : list1) {
-					if (i != 0 || j != 0 || k != 0) {
-						draw(i, j, k);
-					}
+				if (i != 0 || j != 0) {
+					draw(i, j);
 				}
 			}
 		}
@@ -870,10 +819,8 @@ public class Life3D2 extends Application {
 		int[] list1 = { -2, 0, 2 };
 		for (int i : list1) {
 			for (int j : list1) {
-				for (int k : list1) {
-					if (i != 0 || j != 0 || k != 0) {
-						draw(i, j, k);
-					}
+				if (i != 0 || j != 0) {
+					draw(i, j);
 				}
 			}
 		}
@@ -894,9 +841,8 @@ public class Life3D2 extends Application {
 		for(int i=0;i<count;i++) {
 			int x=random.nextInt(2*extent+1)-extent;
 			int y=random.nextInt(2*extent+1)-extent;
-			int z=random.nextInt(2*extent+1)-extent;
-			if (getShape(x,y,z)==null) {
-				draw(x,y,z);
+			if (getShape(x,y)==null) {
+				draw(x,y);
 			}
 		}
 	}
@@ -904,7 +850,7 @@ public class Life3D2 extends Application {
 		if (random.nextBoolean()) {
 			drawTotallyRandom();
 		}
-		switch (random.nextInt(17)) {
+		switch (random.nextInt(16)) {
 		case 0:
 			drawStar1();
 			break;
@@ -945,15 +891,12 @@ public class Life3D2 extends Application {
 			draw3DFour1();
 			break;
 		case 13:
-			draw3DFour2();
-			break;
-		case 14:
 			drawRectangle();
 			break;
-		case 15:
+		case 14:
 			drawLittleSphere1();
 			break;
-		case 16:
+		case 15:
 			drawLittleSphere2();
 			break;
 		}
