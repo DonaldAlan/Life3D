@@ -392,6 +392,7 @@ public class Life2D3D extends Application {
 		});
 	}
 	private void clear() {
+		z = 0;
 		world.getChildren().clear();
 		shapes.clear();
 		clearShapesMatrix();
